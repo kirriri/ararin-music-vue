@@ -21,10 +21,19 @@
             @touchmove.stop.prevent="onShortcutTouchMove"
         >
             <ul>
-                <li v-for="(item, index) in shortcutList" :data-index="index" class="item" :key="index+item">
+                <li
+                    v-for="(item, index) in shortcutList"
+                    :data-index="index"
+                    class="item"
+                    :key="index+item"
+                    :class="{'current': currentIndex == index}"
+                >
                     {{item}}
                 </li>
             </ul>
+        </div>
+        <div class="list-fixed" ref="fixed" v-show="fixedTitle">
+            <h1 class="fixed-title">{{fixedTitle}}</h1>
         </div>
     </scroll>
 </template>
@@ -34,6 +43,7 @@
     import { getData } from 'common/js/dom'
 
     const ANCHOR_HEIGHT = 18
+    const TITLE_HEIGHT = 30
 
     export default {
         created () {
@@ -53,7 +63,8 @@
         data () {
             return {
                 scrollY: -1,
-                currentIndex: 0
+                currentIndex: 0,
+                diff: -1
             }
         },
         computed: {
@@ -61,6 +72,12 @@
                 return this.data.map((group) => {
                     return group.title.substr(0, 1)
                 })
+            },
+            fixedTitle () {
+                if (this.scrollY > 0) {
+                    return ''
+                }
+                return this.data[this.currentIndex] ? this.data[this.currentIndex].title : ''
             }
         },
         methods: {
@@ -79,11 +96,19 @@
                 this._scrollTo(anchorIndex)
             },
             scroll (pos) {
-                console.log(pos)
                 this.scrollY = pos.y
             },
             _scrollTo (index) {
+                if (!index && index !== 0) {
+                    return
+                }
+                if (index < 0) {
+                    index = 0
+                } else if (index > this.listHeight.length - 2) {
+                    index = this.listHeight.length - 2
+                }
                 this.$refs.listview.scrollToElement(this.$refs.listGroup[index], 500)
+                this.scrollY = this.$refs.listview.scroll.y
             },
             _calculateHeight () {
                 this.listHeight = []
@@ -105,16 +130,33 @@
             },
             scrollY (newY) {
                 const listHeight = this.listHeight
-                for (let i = 0; i < listHeight.length; i++) {
+
+                for (let i = 0; i < listHeight.length - 1; i++) {
                     let height1 = listHeight[i]
                     let height2 = listHeight[i + 1]
-                    if (!height2 || (-newY > height1 && -newY < height2)) {
-                        this.currentIndex = i
-                        console.log(this.currentIndex)
+                    //  顶部
+                    if (newY > 0) {
+                        this.currentIndex = 0
                         return
                     }
-                    this.currentIndex = 0
+                    //  中部
+                    if (-newY >= height1 && -newY < height2) {
+                        this.currentIndex = i
+                        this.diff = height2 + newY
+                        return
+                    }
+                    //  底部
+                    this.currentIndex = listHeight - 2
                 }
+            },
+            diff (newVal) {
+                let fixedTop = (newVal > 0 && newVal < TITLE_HEIGHT) ? newVal - TITLE_HEIGHT : 0
+                if (this.fixedTop === fixedTop) {
+                    return
+                }
+                this.fixedTop = fixedTop
+                console.log(this.$refs.fixed)
+                this.$refs.fixed.style.transform = `translate3d(0, ${fixedTop}px, 0)`
             }
         },
         components: {

@@ -9,7 +9,7 @@ import BSroll from 'better-scroll'
 
 export default {
     props: {
-        probeTyoe: {
+        probeType: {
             type: Number,
             default: 1
         },
@@ -32,7 +32,7 @@ export default {
                 return
             }
             this.scroll = new BSroll(this.$refs.wrapper, {
-                probeTyoe: this.probeTyoe,
+                probeType: this.probeType,
                 click: this.click
             })
             if (this.listenScroll) {
