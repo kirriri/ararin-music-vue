@@ -1,7 +1,7 @@
 <template>
     <div class="player">
         <div class="normal-player">
-            播放器
+            播放器test
         </div>
         <div class="mini-player">
 
