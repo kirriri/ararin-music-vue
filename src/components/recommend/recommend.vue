@@ -12,7 +12,7 @@
           </slider>
         </div>
         <div class="recommend-list">
-          <h1 class="list-title">热门歌单推荐</h1>
+          <h1 class="list-title">热门歌单推荐测试</h1>
           <ul>
             <li v-for="item in discList" class="item" :key="item.dissid">
               <div class="icon">

@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "better-scroll": "^1.15.2",
+    "create-keyframe-animation": "^0.1.0",
     "jsonp": "^0.2.1",
     "stylus": "^0.54.5",
     "stylus-loader": "^3.0.2",
