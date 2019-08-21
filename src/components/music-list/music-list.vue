@@ -25,7 +25,7 @@
             <div class="song-list-wrapper">
                 <song-list @select="selectItem" :songs="songs"></song-list>
             </div>
-            <loading></loading>
+            <loading v-show="songs.length < 1"></loading>
         </scroll>
     </div>
 </template>
@@ -97,7 +97,6 @@ export default {
     },
     watch: {
         scrollY (newY) {
-            console.log(newY)
             let scale = 1
             let zIndex = 0
             let blur = 0

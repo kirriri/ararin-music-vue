@@ -35,7 +35,6 @@ export function getSongsUrl (songs) {
     mids.push(song.mid)
     types.push(0)
   })
-
   const urlMid = genUrlMid(mids, types)
 
   const data = Object.assign({}, commonParams, {
@@ -49,6 +48,8 @@ export function getSongsUrl (songs) {
   return new Promise((resolve, reject) => {
     let tryTime = 3
 
+    console.log(data)
+    console.log(urlMid)
     function request () {
       return axios.post(url, {
         comm: data,
@@ -58,6 +59,7 @@ export function getSongsUrl (songs) {
         if (res.code === ERR_OK) {
           let urlMid = res.req_0
           if (urlMid && urlMid.code === ERR_OK) {
+            console.log(res)
             const purlMap = {}
             urlMid.data.midurlinfo.forEach((item) => {
               if (item.purl) {
@@ -65,6 +67,7 @@ export function getSongsUrl (songs) {
               }
             })
             if (Object.keys(purlMap).length > 0) {
+              console.log(purlMap)
               resolve(purlMap)
             } else {
               retry()

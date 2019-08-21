@@ -22,24 +22,31 @@
                     <div class="middle-l">
                         <div class="cd-wrapper" ref="cdWrapper">
                             <div class="cd">
-                                <img alt="" class="image" :src="currentSong.image"/>
+                                <img alt="" class="image" :class="cdCls" :src="currentSong.image"/>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="bottom">
+                    <div class="progress-wrapper">
+                        <span class="time time-l">{{format(currentTime)}}</span>
+                        <div class="progress-bar-wrapper">
+                            <progress-bar @percentChange="onPercentChange" :percent="percent"></progress-bar>
+                        </div>
+                        <span class="time time-r">{{format(currentSong.duration)}}</span>
+                    </div>
                     <div class="operators">
                         <div class="icon i-left">
                             <i class="icon-sequence"></i>
                         </div>
-                        <div class="icon i-left">
-                            <i class="icon-prev"></i>
+                        <div class="icon i-left" :class="disableCls">
+                            <i @click="prev" class="icon-prev"></i>
                         </div>
-                        <div class="icon i-center">
-                            <i class="icon-play"></i>
+                        <div class="icon i-center" :class="disableCls">
+                            <i @click="togglePlay" :class="playIcon"></i>
                         </div>
-                        <div class="icon i-right">
-                            <i class="icon-next"></i>
+                        <div class="icon i-right" :class="disableCls">
+                            <i @click="next" class="icon-next"></i>
                         </div>
                         <div class="icon i-right">
                             <i class="icon icon-not-favorite"></i>
@@ -52,7 +59,7 @@
             <div class="mini-player" v-show="!fullScreen" @click="open">
                 <div class="icon">
                     <div class="imgWrapper" ref="miniWrapper">
-                        <img ref="miniImage" width="40" height="40" :src="currentSong.image">
+                        <img ref="miniImage" width="40" height="40" :class="cdCls" :src="currentSong.image">
                     </div>
                 </div>
                 <div class="text">
@@ -60,13 +67,22 @@
                     <p class="desc" v-html="currentSong.desc"></p>
                 </div>
                 <div class="control">
-
+                  <progress-circle :radius="radius" :percent="percent">
+                    <i @click.stop="togglePlay" class="icon-mini" :class="miniIcon"></i>
+                  </progress-circle>
                 </div>
                 <div class="control">
                     <i class="icon-playlist"></i>
                 </div>
             </div>
         </transition>
+        <audio
+          ref="audio"
+          :src="currentSong.url"
+          @canplay="ready"
+          @error="error"
+          @timeupdate="updateTime"
+        />
     </div>
 </template>
 
@@ -74,14 +90,50 @@
     import { mapGetters, mapMutations } from 'vuex'
     import animations from 'create-keyframe-animation'
     import { prefixStyle } from 'common/js/dom'
+    import ProgressBar from 'base/progress-bar/progress-bar'
+    import ProgressCircle from 'base/progress-circle/progress-circle'
 
     const transform = prefixStyle('transform')
 
     export default {
+        data () {
+          return {
+            radius: 32,
+            songReady: false,
+            currentTime: 0
+          }
+        },
         methods: {
             ...mapMutations({
-                setFullScren: 'SET_FULL_SCREEN'
+                setFullScren: 'SET_FULL_SCREEN',
+                setPlaying: 'SET_PLAYING_STATE',
+                setCurrentIndex: 'SET_CURRENT_INDEX'
             }),
+            togglePlay () {
+                this.setPlaying(!this.playing)
+            },
+            prev () {
+                if (!this.songReady) {
+                  return
+                }
+                let index = this.currentIndex - 1
+                if (index === -1) {
+                  index = this.playList.length - 1
+                }
+                this.setCurrentIndex(index)
+                this.songReady = false
+            },
+            next () {
+                if (!this.songReady) {
+                  return
+                }
+                let index = this.currentIndex + 1
+                if (index === this.playList.length) {
+                  index = 0
+                }
+                this.setCurrentIndex(index)
+                this.songReady = false
+            },
             back () {
                 this.setFullScren(false)
             },
@@ -125,6 +177,24 @@
                 this.$refs.cdWrapper.style.transition = ''
                 this.$refs.cdWrapper.style[transform] = ''
             },
+            ready () {
+                this.songReady = true
+            },
+            error () {
+                this.songReady = true
+            },
+            format (time) {
+                const minutes = time / 60 | 0
+                const tmpSeconds = time % 60 | 0
+                const seconds = tmpSeconds < 10 ? `0${tmpSeconds}` : tmpSeconds
+                return `${minutes}:${seconds}`
+            },
+            updateTime (e) {
+                this.currentTime = e.target.currentTime
+            },
+            onPercentChange (percent) {
+                this.$refs.audio.currentTime = this.currentSong.duration * percent
+            },
             _getPosAndScale () {
                 const targetWidth = 40
                 const paddingLeft = 40
@@ -142,11 +212,47 @@
             }
         },
         computed: {
+            cdCls () {
+                return this.playing ? 'play' : ''
+            },
+            playIcon () {
+                return this.playing ? 'icon-pause' : 'icon-play'
+            },
+            miniIcon () {
+                return this.playing ? 'icon-pause-mini' : 'icon-play-mini'
+            },
+            disableCls () {
+                return this.songReady ? '' : 'disable'
+            },
+            percent () {
+              return this.currentTime / this.currentSong.duration
+            },
             ...mapGetters([
+                'playing',
                 'fullScreen',
                 'playList',
-                'currentSong'
+                'currentSong',
+                'currentIndex'
             ])
+        },
+        watch: {
+          currentSong () {
+            this.$nextTick(() => {
+              if (this.playing === true) {
+                this.$refs.audio.play()
+              }
+            })
+          },
+          playing (newPlaying) {
+            const audio = this.$refs.audio
+            this.$nextTick(() => {
+              newPlaying ? audio.play() : audio.pause()
+            })
+          }
+        },
+        components: {
+          ProgressBar,
+          ProgressCircle
         }
     }
 </script>
