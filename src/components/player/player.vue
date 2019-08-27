@@ -21,8 +21,8 @@
                 <div class="middle">
                     <div class="middle-l">
                         <div class="cd-wrapper" ref="cdWrapper">
-                            <div class="cd">
-                                <img alt="" class="image" :class="cdCls" :src="currentSong.image"/>
+                            <div class="cd" ref="imgWrapper">
+                                <img ref="image" alt="" class="image" :class="cdCls" :src="currentSong.image"/>
                             </div>
                         </div>
                     </div>
@@ -36,8 +36,8 @@
                         <span class="time time-r">{{format(currentSong.duration)}}</span>
                     </div>
                     <div class="operators">
-                        <div class="icon i-left">
-                            <i class="icon-sequence"></i>
+                        <div class="icon i-left" @click="changeMode">
+                            <i :class="iconMode"></i>
                         </div>
                         <div class="icon i-left" :class="disableCls">
                             <i @click="prev" class="icon-prev"></i>
@@ -82,6 +82,7 @@
           @canplay="ready"
           @error="error"
           @timeupdate="updateTime"
+          @ended="ended"
         />
     </div>
 </template>
@@ -92,12 +93,16 @@
     import { prefixStyle } from 'common/js/dom'
     import ProgressBar from 'base/progress-bar/progress-bar'
     import ProgressCircle from 'base/progress-circle/progress-circle'
+    import { playMode } from 'common/js/config'
+    import { shuffle } from 'common/js/util'
+    import Lyric from 'lyric-parser'
 
     const transform = prefixStyle('transform')
 
     export default {
         data () {
           return {
+            currentLyric: null,
             radius: 32,
             songReady: false,
             currentTime: 0
@@ -107,7 +112,9 @@
             ...mapMutations({
                 setFullScren: 'SET_FULL_SCREEN',
                 setPlaying: 'SET_PLAYING_STATE',
-                setCurrentIndex: 'SET_CURRENT_INDEX'
+                setCurrentIndex: 'SET_CURRENT_INDEX',
+                setplayMode: 'SET_PLAY_MODE',
+                setPlayList: 'SET_PLAYLIST'
             }),
             togglePlay () {
                 this.setPlaying(!this.playing)
@@ -133,6 +140,19 @@
                 }
                 this.setCurrentIndex(index)
                 this.songReady = false
+            },
+            ended () {
+                this.currentTime = 0
+                if (this.mode === playMode.loop) {
+                  this.loop()
+                } else {
+                  this.next()
+                }
+            },
+            loop () {
+                this.$refs.audio.currentTime = 0
+                this.$refs.audio.play()
+                this.setPlayingState(true)
             },
             back () {
                 this.setFullScren(false)
@@ -195,6 +215,40 @@
             onPercentChange (percent) {
                 this.$refs.audio.currentTime = this.currentSong.duration * percent
             },
+            changeMode () {
+                const mode = (this.mode + 1) % 3
+                this.setplayMode(mode)
+                let list = null
+                if (mode === playMode.random) {
+                  list = shuffle(this.sequence)
+                } else {
+                  list = this.sequence
+                }
+                this.resetCurrentIndex(list)
+                this.setPlayList(list)
+            },
+            resetCurrentIndex (list) {
+                let index = list.findIndex(item => {
+                  return item.id === this.currentSong.id
+                })
+                this.setCurrentIndex(index)
+            },
+            getLyric () {
+              this.currentSong.getLyric().then((lyric) => {
+                this.currentLyric = new Lyric(lyric)
+                console.log(this.currentLyric)
+              })
+            },
+            _setCdImaPos (wrapper, targetImg) {
+                if (!this.$refs[wrapper]) {
+                  return
+                }
+                let imgWrapper = this.$refs[wrapper]
+                let image = this.$refs[targetImg]
+                let wTransform = getComputedStyle(imgWrapper)[transform]
+                let iTransform = getComputedStyle(image)[transform]
+                imgWrapper.style[transform] = wTransform === 'none' ? iTransform : iTransform.concat(' ', wTransform)
+            },
             _getPosAndScale () {
                 const targetWidth = 40
                 const paddingLeft = 40
@@ -227,19 +281,28 @@
             percent () {
               return this.currentTime / this.currentSong.duration
             },
+            iconMode () {
+              return this.mode === playMode.sequence ? 'icon-sequence' : this.mode === playMode.loop ? 'icon-loop' : 'icon-random'
+            },
             ...mapGetters([
                 'playing',
                 'fullScreen',
                 'playList',
                 'currentSong',
-                'currentIndex'
+                'currentIndex',
+                'mode',
+                'sequence'
             ])
         },
         watch: {
-          currentSong () {
+          currentSong (newSong, oldSong) {
+            if (newSong.id === oldSong.id) {
+              return
+            }
             this.$nextTick(() => {
               if (this.playing === true) {
                 this.$refs.audio.play()
+                this.getLyric()
               }
             })
           },
@@ -248,6 +311,13 @@
             this.$nextTick(() => {
               newPlaying ? audio.play() : audio.pause()
             })
+            if (!newPlaying) {
+              if (this.fullScreen) {
+                this._setCdImaPos('imgWrapper', 'image')
+              } else {
+                this._setCdImaPos('miniWrapper', 'miniImage')
+              }
+            }
           }
         },
         components: {
